@@ -5,8 +5,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.bind.support.WebExchangeBindException;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.springframework.web.server.ServerWebInputException;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -23,6 +25,24 @@ public class GlobalExceptionHandler {
         response.put("message", ex.getMessage());
         response.put("timestamp", LocalDateTime.now());
         return Mono.just(ResponseEntity.badRequest().body(response));
+    }
+
+    @ExceptionHandler(WebClientResponseException.class)
+    public Mono<ResponseEntity<Map<String, Object>>> handleWebClientResponseException(WebClientResponseException ex) {
+
+        return Mono.fromCallable(() -> {
+            Map<String, Object> response = new HashMap<>();
+
+            response.put("status", ex.getStatusCode().value());
+            response.put("error", "Error en servicio externo");
+            response.put("message", ex.getStatusText());
+            response.put("detail", ex.getResponseBodyAsString());
+            response.put("code", "SERVICE_ERROR");
+            response.put("timestamp", LocalDateTime.now());
+
+            return ResponseEntity.status(ex.getStatusCode()).body(response);
+
+        }).subscribeOn(Schedulers.boundedElastic());
     }
 
     @ExceptionHandler(ServerWebInputException.class)

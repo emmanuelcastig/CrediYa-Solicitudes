@@ -1,22 +1,20 @@
 server:
   port: 9002
-
 spring:
   application:
     name: "Solicitudes"
   devtools:
     add-properties: false
   r2dbc:
-    host: localhost
+    host: "localhost"
     port: 5432
-    database: solicitudesdb
-    schema: public
-    username: postgres
+    database: "solicitudesdb"
+    schema: "public"
+    username: "postgres"
     password: 1234
   sql:
     init:
-      mode: always
-
+      mode: "always"
 management:
   endpoints:
     web:
@@ -26,11 +24,37 @@ management:
     health:
       probes:
         enabled: true
-
+  health:
+    circuitbreakers:
+      enabled: true
 logging:
   level:
-    root: INFO
-    co.com.pragma: TRACE
-
+    root: "INFO"
+    co.com.pragma: "TRACE"
 cors:
   allowed-origins: "http://localhost:4200,http://localhost:8080"
+adapter:
+  restconsumer:
+    timeout: 5000
+    url: "http://localhost:9001"
+resilience4j:
+  circuitbreaker:
+    instances:
+      testGet:
+        registerHealthIndicator: true
+        failureRateThreshold: 50
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: "2s"
+        permittedNumberOfCallsInHalfOpenState: 3
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 10
+        waitDurationInOpenState: "10s"
+      testPost:
+        registerHealthIndicator: true
+        failureRateThreshold: 50
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: "2s"
+        permittedNumberOfCallsInHalfOpenState: 3
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 10
+        waitDurationInOpenState: "10s"
