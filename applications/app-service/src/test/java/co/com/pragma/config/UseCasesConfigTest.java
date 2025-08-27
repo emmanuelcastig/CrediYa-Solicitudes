@@ -1,5 +1,6 @@
 package co.com.pragma.config;
 
+import co.com.pragma.model.consumer.SolicitanteConsumerGateway;
 import co.com.pragma.model.solicitud.gateways.SolicitudRepository;
 import co.com.pragma.model.tipoprestamo.gateways.TipoPrestamoRepository;
 import org.junit.jupiter.api.Test;
@@ -43,6 +44,9 @@ class UseCasesConfigTest {
         public TipoPrestamoRepository tipoPrestamoRepository() {
             return mock(TipoPrestamoRepository.class);
         }
+
+        @Bean
+        public SolicitanteConsumerGateway solicitanteConsumerGateway() {return mock(SolicitanteConsumerGateway.class);}
 
         @Bean
         public MyUseCase myUseCase() {
