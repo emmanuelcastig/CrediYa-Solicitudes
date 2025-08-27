@@ -27,10 +27,13 @@ public class JwtAuthenticationFilter implements WebFilter {
             return Mono.error(new RuntimeException("Token inválido"));
         }
 
-        // 👉 Guardar claims para usarlos después en el UseCase
-        exchange.getAttributes().put("username", jwtProvider.extractUsername(token));
-        exchange.getAttributes().put("rol", jwtProvider.extractRol(token));
+        String email = jwtProvider.extractEmail(token);
+        String rol = jwtProvider.extractRol(token);
 
+        // Guardar en atributos del request
+        exchange.getAttributes().put("token", token);
+        exchange.getAttributes().put("email", email);
+        exchange.getAttributes().put("rol", rol);
         return chain.filter(exchange);
     }
 }

@@ -27,9 +27,9 @@ public class JwtProvider {
         this.jwtExpirationMs = jwtExpirationMs;
     }
 
-    public String generateToken(String username, String rol) {
+    public String generateToken(String email, String rol, String documentoIdentidad) {
         return Jwts.builder()
-                .setSubject(username)
+                .setSubject(email)
                 .claim("rol", rol)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + jwtExpirationMs))
@@ -37,24 +37,21 @@ public class JwtProvider {
                 .compact();
     }
 
-
-
-
     public String extractRol(String token) {
         return extractClaim(token, claims -> claims.get("rol", String.class));
     }
 
+
     public boolean validateToken(String token) {
         try {
-            String username = extractUsername(token);
-            return (username != null && !isTokenExpired(token));
+            String email = extractEmail(token);
+            return (email != null && !isTokenExpired(token));
         } catch (Exception e) {
             return false;
         }
     }
 
-    // 👉 Extraer username
-    public String extractUsername(String token) {
+    public String extractEmail(String token) {
         return extractClaim(token, Claims::getSubject);
     }
 
