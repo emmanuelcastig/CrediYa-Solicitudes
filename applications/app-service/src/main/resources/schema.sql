@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS tipo_prestamo (
     validacion_automatica BOOLEAN NOT NULL DEFAULT FALSE
     );
 
-CREATE TABLE IF NOT EXISTS solicitud (
+CREATE TABLE IF NOT EXISTS solicitud_hu3  (
                            id_solicitud BIGSERIAL PRIMARY KEY,
                            documento_identidad VARCHAR(50) NOT NULL,
                            monto DECIMAL(15,2) NOT NULL,

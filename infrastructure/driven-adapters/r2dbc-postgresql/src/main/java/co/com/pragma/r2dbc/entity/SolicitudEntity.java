@@ -13,7 +13,7 @@ import java.math.BigDecimal;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@Table("solicitud")
+@Table("solicitud_hu3")
 public class SolicitudEntity {
     @Id
     private Long idSolicitud;
