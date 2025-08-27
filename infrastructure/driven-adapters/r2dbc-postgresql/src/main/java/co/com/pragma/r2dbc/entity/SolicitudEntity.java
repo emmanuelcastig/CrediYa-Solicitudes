@@ -17,10 +17,16 @@ import java.math.BigDecimal;
 public class SolicitudEntity {
     @Id
     private Long idSolicitud;
+    private String nombre;
+    private String apelllido;
     private String documentoIdentidad;
     private BigDecimal monto;
     private int plazo;
+    private BigDecimal tasaInteres;
+    private BigDecimal salarioBase;
+    private BigDecimal deudaMensual;
+    private int solicitudesAprobadas;
     private String email;
-    private String estado;
+    private Long idEstado;
     private Long idTipoPrestamo;
 }

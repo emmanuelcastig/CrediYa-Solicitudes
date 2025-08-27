@@ -45,6 +45,16 @@ public class GlobalExceptionHandler {
         }).subscribeOn(Schedulers.boundedElastic());
     }
 
+    @ExceptionHandler(RuntimeException.class)
+    public Mono<ResponseEntity<Map<String, Object>>> handleRuntimeException(RuntimeException ex) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", HttpStatus.UNAUTHORIZED.value());
+        response.put("error", "Error de autenticación/validación");
+        response.put("message", ex.getMessage());
+        response.put("timestamp", LocalDateTime.now());
+        return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response));
+    }
+
     @ExceptionHandler(ServerWebInputException.class)
     public ResponseEntity<Map<String, Object>> handleServerWebInput(ServerWebInputException ex) {
         Throwable rootCause = ex.getCause();

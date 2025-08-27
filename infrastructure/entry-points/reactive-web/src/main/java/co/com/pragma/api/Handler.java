@@ -1,8 +1,12 @@
 package co.com.pragma.api;
 
 import co.com.pragma.api.dto.SolicitudRequest;
+import co.com.pragma.api.dto.SolicitudResponse;
 import co.com.pragma.api.mapper.SolicitudMapper;
-import co.com.pragma.api.security.PermisoValidator;
+import co.com.pragma.api.security.PermisoCrearValidator;
+import co.com.pragma.api.security.PermisoListaValidator;
+import co.com.pragma.model.estado.gateways.EstadoRepository;
+import co.com.pragma.model.tipoprestamo.gateways.TipoPrestamoRepository;
 import co.com.pragma.usecase.cliente.in.CrearSolicitudCredito;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ValidationException;
@@ -24,6 +28,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class Handler {
     private final CrearSolicitudCredito crearSolicitudCredito;
+    private final EstadoRepository estadoRepository;
+    private final TipoPrestamoRepository tipoPrestamoRepository;
     private final Validator validator;
     private final TransactionalOperator transactionalOperator;
     private final SolicitudMapper solicitudMapper;
@@ -35,7 +41,6 @@ public class Handler {
         String email = (String) serverRequest.attributes().get("email");
         String rol = (String) serverRequest.attributes().get("rol");
 
-
         log.debug("Token recibido: {}", token);
         log.debug("Email extraído del token: {}", email);
 
@@ -44,7 +49,7 @@ public class Handler {
                 .flatMap(this::validacion)
                 .doOnNext(valid -> log.trace("Payload validado correctamente"))
                 .flatMap(request ->
-                        PermisoValidator.validarCreacionSolicitud(email, rol, request)
+                        PermisoCrearValidator.validarCreacionSolicitud(email, rol, request)
                                 .doOnSuccess(valid -> log.trace("Validación de permisos " +
                                                 "exitosa para usuario={} rol={} request={}",
                                         email, rol, request))
@@ -57,13 +62,63 @@ public class Handler {
                 .flatMap(solicitud -> crearSolicitudCredito.crearSolicitud(solicitud)
                         .as(transactionalOperator::transactional))
                 .contextWrite(ctx -> ctx.put("token", token))
-                .map(solicitudMapper::toResponse)
+                .flatMap(solicitud -> Mono.zip(
+                                estadoRepository.findByidEstado(solicitud.getIdEstado()),
+                                tipoPrestamoRepository.findByIdTipoPrestamo(solicitud.getIdTipoPrestamo())
+                        ).map(tuple -> {
+                            // Mapear primero a response
+                            SolicitudResponse response = solicitudMapper.toResponse(solicitud);
+                            // Luego completar los nombres manualmente
+                            response.setEstado(tuple.getT1().getNombre());
+                            response.setTipoPrestamo(tuple.getT2().getNombre());
+                            return response;
+                        })
+                )
                 .doOnSuccess(saved -> log.info("Solicitud creada exitosamente: {}", saved))
                 .doOnError(error -> log.error("Error al crear solicitud", error))
                 .flatMap(saved -> {
                     log.trace("Construyendo respuesta HTTP 201 para solicitud: {}", saved);
                     return ServerResponse.status(HttpStatus.CREATED).bodyValue(saved);
                 });
+    }
+
+    public Mono<ServerResponse> listarSolicitudesPorEstado(ServerRequest serverRequest) {
+        log.trace("Iniciando consulta de solicitudes por estado");
+
+        String rol = (String) serverRequest.attributes().get("rol");
+
+        String idEstadoStr = serverRequest.pathVariable("idEstado");
+        Long idEstado;
+
+        try {
+            idEstado = Long.parseLong(idEstadoStr);
+        } catch (NumberFormatException e) {
+            log.error("El idEstado recibido no es válido: {}", idEstadoStr);
+            return ServerResponse.badRequest()
+                    .bodyValue("El idEstado debe ser un número válido");
+        }
+
+        return PermisoListaValidator.validarAccesoListarSolicitudes(rol)
+                .thenMany(crearSolicitudCredito.listarSolicitudesPorEstado(idEstado)
+                        .flatMap(solicitud -> Mono.zip(
+                                estadoRepository.findByidEstado(solicitud.getIdEstado()),
+                                tipoPrestamoRepository.findByIdTipoPrestamo(solicitud.getIdTipoPrestamo())
+                        ).map(tuple -> {
+                            SolicitudResponse response = solicitudMapper.toResponse(solicitud);
+                            response.setEstado(tuple.getT1().getNombre());
+                            response.setTipoPrestamo(tuple.getT2().getNombre());
+                            return response;
+                        }))
+                )
+                .collectList()
+                .flatMap(responses -> {
+                    if (responses.isEmpty()) {
+                        log.warn("No se encontraron solicitudes con idEstado={}", idEstado);
+                        return ServerResponse.noContent().build();
+                    }
+                    return ServerResponse.ok().bodyValue(responses);
+                })
+                .doOnError(error -> log.error("Error al listar solicitudes por estado", error));
     }
 
     public Mono<SolicitudRequest> validacion(SolicitudRequest request) {

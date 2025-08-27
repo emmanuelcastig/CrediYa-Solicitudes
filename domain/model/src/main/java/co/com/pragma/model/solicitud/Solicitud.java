@@ -1,12 +1,6 @@
 package co.com.pragma.model.solicitud;
 
-import co.com.pragma.model.enums.Estado;
-import co.com.pragma.model.tipoprestamo.TipoPrestamo;
-import lombok.Builder;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.math.BigDecimal;
 
@@ -17,11 +11,17 @@ import java.math.BigDecimal;
 @Builder(toBuilder = true)
 public class Solicitud {
     private Long idSolicitud;
+    private String nombre;
+    private String apellido;
     private String documentoIdentidad;
     private BigDecimal monto;
     private int plazo;
+    private BigDecimal tasaInteres;
+    private BigDecimal salarioBase;
+    private BigDecimal deudaMensual;
+    private int solicitudesAprobadas;
     private String email;
-    private Estado estado;
+    private Long idEstado;
     private Long idTipoPrestamo;
 
 }

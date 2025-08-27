@@ -54,6 +54,7 @@ public class RouterRest {
             )
     })
     public RouterFunction<ServerResponse> routerFunction(Handler handler) {
-        return route(POST("/api/v1/solicitud"), handler::crearSolicitud);
+        return route(POST("/api/v1/solicitud"), handler::crearSolicitud)
+                .andRoute(GET("/api/v1/solicitud/{idEstado}"), handler::listarSolicitudesPorEstado);
     }
 }
