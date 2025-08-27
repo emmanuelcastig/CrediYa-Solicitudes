@@ -21,6 +21,8 @@ import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -55,13 +57,20 @@ class RouterRestTest {
     @BeforeEach
     void setUp() {
         solicitudRequest = new SolicitudRequest();
+        solicitudRequest.setEmail("test@correo.com");
+
         solicitudDomain = new Solicitud();
         solicitudResponse = new SolicitudResponse();
-    }
 
+        Map<String, Object> attrs = new HashMap<>();
+        attrs.put("token", "fake-token");
+        attrs.put("email", "test@correo.com");
+        attrs.put("rol", "CLIENTE");
+
+        when(serverRequest.attributes()).thenReturn(attrs);
+    }
     @Test
     void crearSolicitud_DeberiaRetornarCreatedCuandoTodoEsExitoso() {
-
         when(serverRequest.bodyToMono(SolicitudRequest.class)).thenReturn(Mono.just(solicitudRequest));
         when(validator.validate(solicitudRequest)).thenReturn(Collections.emptySet());
         when(solicitudMapper.toDomain(solicitudRequest)).thenReturn(solicitudDomain);
@@ -70,9 +79,7 @@ class RouterRestTest {
         when(solicitudMapper.toResponse(solicitudDomain)).thenReturn(solicitudResponse);
 
         StepVerifier.create(handler.crearSolicitud(serverRequest))
-                .expectNextMatches(serverResponse ->
-                        serverResponse.statusCode() == CREATED
-                )
+                .expectNextMatches(serverResponse -> serverResponse.statusCode() == CREATED)
                 .verifyComplete();
 
         verify(validator).validate(solicitudRequest);
@@ -84,7 +91,6 @@ class RouterRestTest {
 
     @Test
     void crearSolicitud_DeberiaManejarValidacionFallida() {
-
         ConstraintViolation<SolicitudRequest> violation = mock(ConstraintViolation.class);
         Path path = mock(Path.class);
 
@@ -124,11 +130,9 @@ class RouterRestTest {
 
     @Test
     void crearSolicitud_DeberiaManejarErrorEnMapeo() {
-
         when(serverRequest.bodyToMono(SolicitudRequest.class)).thenReturn(Mono.just(solicitudRequest));
         when(validator.validate(solicitudRequest)).thenReturn(Collections.emptySet());
-        when(solicitudMapper.toDomain(solicitudRequest))
-                .thenThrow(new RuntimeException("Error en mapeo"));
+        when(solicitudMapper.toDomain(solicitudRequest)).thenThrow(new RuntimeException("Error en mapeo"));
 
         StepVerifier.create(handler.crearSolicitud(serverRequest))
                 .expectError(RuntimeException.class)
@@ -139,10 +143,8 @@ class RouterRestTest {
         verifyNoInteractions(crearSolicitudCredito, transactionalOperator);
     }
 
-
     @Test
     void crearSolicitud_DeberiaManejarMapperToResponseNull() {
-
         when(serverRequest.bodyToMono(SolicitudRequest.class)).thenReturn(Mono.just(solicitudRequest));
         when(validator.validate(solicitudRequest)).thenReturn(Collections.emptySet());
         when(solicitudMapper.toDomain(solicitudRequest)).thenReturn(solicitudDomain);
