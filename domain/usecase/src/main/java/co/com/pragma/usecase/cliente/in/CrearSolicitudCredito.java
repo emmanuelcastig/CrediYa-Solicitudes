@@ -7,4 +7,5 @@ import reactor.core.publisher.Mono;
 public interface CrearSolicitudCredito {
     Mono<Solicitud> crearSolicitud(Solicitud solicitud);
     Flux<Solicitud> listarSolicitudesPorEstado(Long idEstado);
+    Mono<Void> cambiarEstadoSolicitud(Long idSolicitud, Long idEstado);
 }

@@ -1,5 +1,6 @@
 package co.com.pragma.usecase.cliente;
 
+import co.com.pragma.model.estado.gateways.EstadoRepository;
 import co.com.pragma.model.solicitud.Solicitud;
 import co.com.pragma.model.solicitud.gateways.SolicitudRepository;
 import co.com.pragma.model.tipoprestamo.TipoPrestamo;
@@ -19,13 +20,15 @@ class SolicitudUseCaseTest {
     private SolicitudRepository solicitudRepository;
     private SolicitanteConsumerGateway solicitanteConsumerGateway;
     private SolicitudUseCase solicitudUseCase;
+    private EstadoRepository estadoRepository;
 
     @BeforeEach
     void setUp() {
         tipoPrestamoRepository = Mockito.mock(TipoPrestamoRepository.class);
         solicitudRepository = Mockito.mock(SolicitudRepository.class);
         solicitanteConsumerGateway = Mockito.mock(SolicitanteConsumerGateway.class);
-        solicitudUseCase = new SolicitudUseCase(tipoPrestamoRepository, solicitudRepository, solicitanteConsumerGateway);
+        solicitudUseCase = new SolicitudUseCase(tipoPrestamoRepository, solicitudRepository, solicitanteConsumerGateway,
+                estadoRepository);
     }
 
     @Test

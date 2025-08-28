@@ -1,6 +1,7 @@
 package co.com.pragma.usecase.cliente;
 
 import co.com.pragma.model.consumer.SolicitanteConsumerGateway;
+import co.com.pragma.model.estado.gateways.EstadoRepository;
 import co.com.pragma.model.solicitud.Solicitud;
 import co.com.pragma.model.solicitud.gateways.SolicitudRepository;
 import co.com.pragma.model.tipoprestamo.gateways.TipoPrestamoRepository;
@@ -17,6 +18,7 @@ public class SolicitudUseCase implements CrearSolicitudCredito {
     private final TipoPrestamoRepository tipoPrestamoRepository;
     private final SolicitudRepository solicitudRepository;
     private final SolicitanteConsumerGateway solicitanteConsumerGateway;
+    private final EstadoRepository estadoRepository;
 
 
     @Override
@@ -41,6 +43,30 @@ public class SolicitudUseCase implements CrearSolicitudCredito {
             return Flux.error(new IllegalArgumentException("El idEstado debe ser un valor positivo"));
         }
         return solicitudRepository.obtenerSolicitudesPorEstado(idEstado);
+    }
+
+    // Cambiar estado de una solicitud
+    @Override
+    public Mono<Void> cambiarEstadoSolicitud(Long idSolicitud, Long idEstado) {
+        if (idSolicitud == null || idSolicitud <= 0) {
+            return Mono.error(new IllegalArgumentException("El idSolicitud debe ser válido"));
+        }
+        if (idEstado == null || idEstado <= 0) {
+            return Mono.error(new IllegalArgumentException("El idEstado debe ser válido"));
+        }
+        return estadoRepository.findByidEstado(idEstado)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("El estado no existe")))
+                .then(
+                        solicitudRepository.findByIdSolicitud(idSolicitud)
+                                .switchIfEmpty(Mono.error(new IllegalArgumentException("La solicitud no existe")))
+                )
+                .then(solicitudRepository.actualizarEstadoSolicitud(idSolicitud, idEstado))
+                .flatMap(rows -> {
+                    if (rows == 0) {
+                        return Mono.error(new IllegalStateException("No se pudo actualizar la solicitud con id " + idSolicitud));
+                    }
+                    return Mono.empty();
+                });
     }
 
     //Validar que el solicitante exista en el microservicio de solicitantes

@@ -8,4 +8,6 @@ public interface SolicitudRepository {
     Mono<Solicitud> guardarSolicitud(Solicitud solicitud);
     Flux<Solicitud> obtenerSolicitudesPorEstado(Long idEstado);
     Mono<Integer> contarSolicitudesAprobadasPorDocumento(String documentoIdentidad, Long idEstado);
+    Mono<Integer> actualizarEstadoSolicitud(Long idSolicitud, Long idEstado);
+    Mono<Solicitud> findByIdSolicitud(Long idSolicitud);
 }

@@ -3,8 +3,7 @@ package co.com.pragma.api;
 import co.com.pragma.api.dto.SolicitudRequest;
 import co.com.pragma.api.dto.SolicitudResponse;
 import co.com.pragma.api.mapper.SolicitudMapper;
-import co.com.pragma.api.security.PermisoCrearValidator;
-import co.com.pragma.api.security.PermisoListaValidator;
+import co.com.pragma.api.security.PermisoTokenValidator;
 import co.com.pragma.model.estado.gateways.EstadoRepository;
 import co.com.pragma.model.solicitud.Solicitud;
 import co.com.pragma.model.tipoprestamo.gateways.TipoPrestamoRepository;
@@ -50,7 +49,7 @@ public class Handler {
                 .flatMap(this::validacion)
                 .doOnNext(valid -> log.trace("Payload validado correctamente"))
                 .flatMap(request ->
-                        PermisoCrearValidator.validarCreacionSolicitud(email, rol, request)
+                        PermisoTokenValidator.validarCreacionSolicitud(email, rol, request)
                                 .doOnSuccess(valid -> log.trace("Validación de permisos " +
                                                 "exitosa para usuario={} rol={} request={}",
                                         email, rol, request))
@@ -88,7 +87,7 @@ public class Handler {
                     .bodyValue("El idEstado debe ser un número válido");
         }
 
-        return PermisoListaValidator.validarAccesoListarSolicitudes(rol)
+        return PermisoTokenValidator.validarAccesoListarSolicitudes(rol)
                 .thenMany(crearSolicitudCredito.listarSolicitudesPorEstado(idEstado)
                         .flatMap(this::enriquecerSolicitud))
                 .collectList()
@@ -100,6 +99,39 @@ public class Handler {
                     return ServerResponse.ok().bodyValue(responses);
                 })
                 .doOnError(error -> log.error("Error al listar solicitudes por estado", error));
+    }
+
+    public Mono<ServerResponse> cambiarEstadoSolicitud(ServerRequest serverRequest) {
+        log.trace("Iniciando cambio de estado de solicitud");
+
+        String idSolicitudStr = serverRequest.pathVariable("idSolicitud");
+        String idEstadoStr = serverRequest.pathVariable("idEstado");
+        String rol = (String) serverRequest.attributes().get("rol");
+        log.trace("Parámetros recibidos: idEstado={} idSolicitud={}",idSolicitudStr, idEstadoStr);
+        Long idSolicitud;
+        Long idEstado;
+
+        try {
+            idSolicitud = Long.parseLong(idSolicitudStr);
+            idEstado = Long.parseLong(idEstadoStr);
+        } catch (NumberFormatException e) {
+            log.error("Parámetros inválidos: idEstado={} idSolicitud={} ", idSolicitudStr, idEstadoStr);
+            return ServerResponse.badRequest().bodyValue("Los parámetros deben ser numéricos válidos");
+        }
+
+        return PermisoTokenValidator.validarAccesoEditarEstado(rol)
+                .then(crearSolicitudCredito.cambiarEstadoSolicitud(idEstado,idSolicitud)
+                        .doOnSuccess(result -> log.info("Solicitud {} actualizada al estado {}", idEstado, idSolicitud))
+                        .doOnError(err -> log.error("Error actualizando solicitud {} al estado {}", idEstado,
+                                idSolicitud, err))
+                )
+                .then(ServerResponse.status(HttpStatus.OK)
+                        .bodyValue("Estado de solicitud actualizado"))
+                .onErrorResume(IllegalArgumentException.class,
+                        ex -> ServerResponse.badRequest().bodyValue(ex.getMessage()))
+                .onErrorResume(IllegalStateException.class,
+                        ex -> ServerResponse.notFound().build())
+                .doOnError(error -> log.error("Error al cambiar estado de solicitud", error));
     }
 
     private Mono<SolicitudResponse> enriquecerSolicitud(Solicitud solicitud) {

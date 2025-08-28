@@ -15,8 +15,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.reactive.function.server.ServerResponse;
 
-import static org.springframework.web.reactive.function.server.RequestPredicates.GET;
-import static org.springframework.web.reactive.function.server.RequestPredicates.POST;
+import static org.springframework.web.reactive.function.server.RequestPredicates.*;
 import static org.springframework.web.reactive.function.server.RouterFunctions.route;
 
 @Configuration
@@ -94,10 +93,55 @@ public class RouterRest {
                                     )
                             }
                     )
+            ),
+            @RouterOperation(
+                    path = "/api/v1/solicitud/{idSolicitud}/estado/{idEstado}\"",
+                    beanClass = Handler.class,
+                    beanMethod = "cambiarEstadoSolicitud",
+                    operation = @Operation(
+                            operationId = "cambiarEstadoSolicitud",
+                            summary = "Cambiar estado de una solicitud",
+                            description = "Modifica el estado de una solicitud de crédito existente",
+                            tags = {"Solicitudes"},
+                            parameters = {
+                                    @Parameter(
+                                            name = "idSolicitud",
+                                            description = "ID de la solicitud",
+                                            required = true,
+                                            schema = @Schema(type = "integer", example = "5")
+                                    ),
+                                    @Parameter(
+                                            name = "idEstado",
+                                            description = "Nuevo ID de estado",
+                                            required = true,
+                                            schema = @Schema(type = "integer", example = "2")
+                                    )
+                            },
+                            responses = {
+                                    @ApiResponse(
+                                            responseCode = "204",
+                                            description = "Estado actualizado correctamente"
+                                    ),
+                                    @ApiResponse(
+                                            responseCode = "400",
+                                            description = "Parámetros inválidos"
+                                    ),
+                                    @ApiResponse(
+                                            responseCode = "404",
+                                            description = "No se encontró la solicitud"
+                                    ),
+                                    @ApiResponse(
+                                            responseCode = "500",
+                                            description = "Error interno del servidor"
+                                    )
+                            }
+                    )
             )
     })
     public RouterFunction<ServerResponse> routerFunction(Handler handler) {
         return route(POST("/api/v1/solicitud"), handler::crearSolicitud)
-                .andRoute(GET("/api/v1/solicitud/{idEstado}"), handler::listarSolicitudesPorEstado);
+                .andRoute(GET("/api/v1/solicitud/{idEstado}"), handler::listarSolicitudesPorEstado)
+                .andRoute(PUT("/api/v1/solicitud/{idSolicitud}/estado/{idEstado}"), handler::cambiarEstadoSolicitud);
     }
 }
+

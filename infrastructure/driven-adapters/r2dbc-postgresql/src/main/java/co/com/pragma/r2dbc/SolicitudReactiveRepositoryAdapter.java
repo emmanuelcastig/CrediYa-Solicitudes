@@ -37,4 +37,15 @@ public class SolicitudReactiveRepositoryAdapter extends ReactiveAdapterOperation
     public Mono<Integer> contarSolicitudesAprobadasPorDocumento(String documentoIdentidad, Long idEstado) {
         return repository.contarSolicitudesAprobadasPorDocumento(documentoIdentidad, idEstado);
     }
+
+    @Override
+    public Mono<Integer> actualizarEstadoSolicitud(Long idSolicitud, Long idEstado) {
+        return repository.actualizarEstadoSolicitud(idSolicitud, idEstado);
+    }
+
+    @Override
+    public Mono<Solicitud> findByIdSolicitud(Long idSolicitud) {
+        return repository.findByIdSolicitud(idSolicitud)
+                .map(this::toEntity);
+    }
 }

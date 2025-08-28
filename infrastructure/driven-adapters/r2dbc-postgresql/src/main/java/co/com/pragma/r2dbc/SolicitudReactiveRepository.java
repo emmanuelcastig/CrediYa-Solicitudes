@@ -11,6 +11,11 @@
             , ReactiveQueryByExampleExecutor<SolicitudEntity> {
         Flux<SolicitudEntity> findByIdEstado(Long idEstado);
 
+        Mono<SolicitudEntity> findByIdSolicitud(Long idSolicitud);
+
         @Query("SELECT COUNT(*) FROM solicitud_hu4 WHERE documento_identidad = :documento AND id_estado = :idEstado")
         Mono<Integer> contarSolicitudesAprobadasPorDocumento(String documento, Long idEstado);
+
+        @Query("UPDATE solicitud_hu4 SET id_estado = :idEstado WHERE id_solicitud = :idSolicitud")
+        Mono<Integer> actualizarEstadoSolicitud(Long idSolicitud, Long idEstado);
     }
