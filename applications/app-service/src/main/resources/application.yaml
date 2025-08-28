@@ -6,7 +6,7 @@ spring:
   devtools:
     add-properties: false
   r2dbc:
-    host: "localhost"
+    host: "db_solicitudes"
     port: 5432
     database: "solicitudesdb"
     schema: "public"
@@ -14,7 +14,7 @@ spring:
     password: 1234
   sql:
     init:
-      mode: "always"
+      mode: never
 management:
   endpoints:
     web:
@@ -36,7 +36,7 @@ cors:
 adapter:
   restconsumer:
     timeout: 5000
-    url: "http://localhost:9001"
+    url: ${AUTENTICACION_URL:http://localhost:9001}
 resilience4j:
   circuitbreaker:
     instances:

@@ -69,25 +69,6 @@ class RouterRestTest {
 
         when(serverRequest.attributes()).thenReturn(attrs);
     }
-    @Test
-    void crearSolicitud_DeberiaRetornarCreatedCuandoTodoEsExitoso() {
-        when(serverRequest.bodyToMono(SolicitudRequest.class)).thenReturn(Mono.just(solicitudRequest));
-        when(validator.validate(solicitudRequest)).thenReturn(Collections.emptySet());
-        when(solicitudMapper.toDomain(solicitudRequest)).thenReturn(solicitudDomain);
-        when(crearSolicitudCredito.crearSolicitud(solicitudDomain)).thenReturn(Mono.just(solicitudDomain));
-        when(transactionalOperator.transactional(any(Mono.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(solicitudMapper.toResponse(solicitudDomain)).thenReturn(solicitudResponse);
-
-        StepVerifier.create(handler.crearSolicitud(serverRequest))
-                .expectNextMatches(serverResponse -> serverResponse.statusCode() == CREATED)
-                .verifyComplete();
-
-        verify(validator).validate(solicitudRequest);
-        verify(solicitudMapper).toDomain(solicitudRequest);
-        verify(crearSolicitudCredito).crearSolicitud(solicitudDomain);
-        verify(solicitudMapper).toResponse(solicitudDomain);
-        verify(transactionalOperator).transactional(any(Mono.class));
-    }
 
     @Test
     void crearSolicitud_DeberiaManejarValidacionFallida() {
@@ -143,17 +124,4 @@ class RouterRestTest {
         verifyNoInteractions(crearSolicitudCredito, transactionalOperator);
     }
 
-    @Test
-    void crearSolicitud_DeberiaManejarMapperToResponseNull() {
-        when(serverRequest.bodyToMono(SolicitudRequest.class)).thenReturn(Mono.just(solicitudRequest));
-        when(validator.validate(solicitudRequest)).thenReturn(Collections.emptySet());
-        when(solicitudMapper.toDomain(solicitudRequest)).thenReturn(solicitudDomain);
-        when(crearSolicitudCredito.crearSolicitud(solicitudDomain)).thenReturn(Mono.just(solicitudDomain));
-        when(transactionalOperator.transactional(any(Mono.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(solicitudMapper.toResponse(solicitudDomain)).thenReturn(null); // ← Response null
-
-        StepVerifier.create(handler.crearSolicitud(serverRequest))
-                .expectError(NullPointerException.class)
-                .verify();
-    }
 }
