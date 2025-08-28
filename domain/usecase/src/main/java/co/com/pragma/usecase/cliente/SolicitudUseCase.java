@@ -34,6 +34,7 @@ public class SolicitudUseCase implements CrearSolicitudCredito {
                 .flatMap(solicitudRepository::guardarSolicitud);
     }
 
+    // Listar solicitudes por estado recibido desde la petición
     @Override
     public Flux<Solicitud> listarSolicitudesPorEstado(Long idEstado) {
         if (idEstado == null || idEstado <= 0) {
@@ -42,6 +43,7 @@ public class SolicitudUseCase implements CrearSolicitudCredito {
         return solicitudRepository.obtenerSolicitudesPorEstado(idEstado);
     }
 
+    //Validar que el solicitante exista en el microservicio de solicitantes
     private Mono<Void> validarExistenciaSolicitante(String documentoIdentidad) {
         return solicitanteConsumerGateway.verificarExistenciaSolicitante(documentoIdentidad)
                 .flatMap(existe -> {
@@ -55,6 +57,7 @@ public class SolicitudUseCase implements CrearSolicitudCredito {
                 });
     }
 
+    //Validar que el tipo de préstamo exista en BD
     private Mono<Void> validarTipoPrestamo(Long idTipoPrestamo) {
         return tipoPrestamoRepository.findByIdTipoPrestamo(idTipoPrestamo)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException(
@@ -64,7 +67,6 @@ public class SolicitudUseCase implements CrearSolicitudCredito {
 
 
     // aplica todos los cálculos
-
     private Mono<Solicitud> prepararSolicitudParaGuardar(Solicitud solicitud) {
         aplicarDeudaYEstado(solicitud);
         return asignarSolicitudesAprobadas(solicitud);
@@ -72,7 +74,6 @@ public class SolicitudUseCase implements CrearSolicitudCredito {
 
 
     // Calcula deudaMensual y asigna estado inicial.
-
     private void aplicarDeudaYEstado(Solicitud solicitud) {
         BigDecimal deudaMensual = solicitud.getMonto()
                 .multiply(solicitud.getTasaInteres())

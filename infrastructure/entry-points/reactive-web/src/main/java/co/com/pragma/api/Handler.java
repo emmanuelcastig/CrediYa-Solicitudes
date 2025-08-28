@@ -6,6 +6,7 @@ import co.com.pragma.api.mapper.SolicitudMapper;
 import co.com.pragma.api.security.PermisoCrearValidator;
 import co.com.pragma.api.security.PermisoListaValidator;
 import co.com.pragma.model.estado.gateways.EstadoRepository;
+import co.com.pragma.model.solicitud.Solicitud;
 import co.com.pragma.model.tipoprestamo.gateways.TipoPrestamoRepository;
 import co.com.pragma.usecase.cliente.in.CrearSolicitudCredito;
 import jakarta.validation.ConstraintViolation;
@@ -62,18 +63,7 @@ public class Handler {
                 .flatMap(solicitud -> crearSolicitudCredito.crearSolicitud(solicitud)
                         .as(transactionalOperator::transactional))
                 .contextWrite(ctx -> ctx.put("token", token))
-                .flatMap(solicitud -> Mono.zip(
-                                estadoRepository.findByidEstado(solicitud.getIdEstado()),
-                                tipoPrestamoRepository.findByIdTipoPrestamo(solicitud.getIdTipoPrestamo())
-                        ).map(tuple -> {
-                            // Mapear primero a response
-                            SolicitudResponse response = solicitudMapper.toResponse(solicitud);
-                            // Luego completar los nombres manualmente
-                            response.setEstado(tuple.getT1().getNombre());
-                            response.setTipoPrestamo(tuple.getT2().getNombre());
-                            return response;
-                        })
-                )
+                .flatMap(this::enriquecerSolicitud)
                 .doOnSuccess(saved -> log.info("Solicitud creada exitosamente: {}", saved))
                 .doOnError(error -> log.error("Error al crear solicitud", error))
                 .flatMap(saved -> {
@@ -100,16 +90,7 @@ public class Handler {
 
         return PermisoListaValidator.validarAccesoListarSolicitudes(rol)
                 .thenMany(crearSolicitudCredito.listarSolicitudesPorEstado(idEstado)
-                        .flatMap(solicitud -> Mono.zip(
-                                estadoRepository.findByidEstado(solicitud.getIdEstado()),
-                                tipoPrestamoRepository.findByIdTipoPrestamo(solicitud.getIdTipoPrestamo())
-                        ).map(tuple -> {
-                            SolicitudResponse response = solicitudMapper.toResponse(solicitud);
-                            response.setEstado(tuple.getT1().getNombre());
-                            response.setTipoPrestamo(tuple.getT2().getNombre());
-                            return response;
-                        }))
-                )
+                        .flatMap(this::enriquecerSolicitud))
                 .collectList()
                 .flatMap(responses -> {
                     if (responses.isEmpty()) {
@@ -119,6 +100,19 @@ public class Handler {
                     return ServerResponse.ok().bodyValue(responses);
                 })
                 .doOnError(error -> log.error("Error al listar solicitudes por estado", error));
+    }
+
+    private Mono<SolicitudResponse> enriquecerSolicitud(Solicitud solicitud) {
+        return Mono.zip(
+                        estadoRepository.findByidEstado(solicitud.getIdEstado()),
+                        tipoPrestamoRepository.findByIdTipoPrestamo(solicitud.getIdTipoPrestamo())
+                )
+                .map(tuple -> {
+                    SolicitudResponse response = solicitudMapper.toResponse(solicitud);
+                    response.setEstado(tuple.getT1().getNombre());
+                    response.setTipoPrestamo(tuple.getT2().getNombre());
+                    return response;
+                });
     }
 
     public Mono<SolicitudRequest> validacion(SolicitudRequest request) {

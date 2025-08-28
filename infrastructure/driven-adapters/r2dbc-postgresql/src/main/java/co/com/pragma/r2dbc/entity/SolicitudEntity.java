@@ -18,7 +18,7 @@ public class SolicitudEntity {
     @Id
     private Long idSolicitud;
     private String nombre;
-    private String apelllido;
+    private String apellido;
     private String documentoIdentidad;
     private BigDecimal monto;
     private int plazo;

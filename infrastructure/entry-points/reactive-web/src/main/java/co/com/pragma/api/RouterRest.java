@@ -3,6 +3,8 @@ package co.com.pragma.api;
 import co.com.pragma.api.dto.SolicitudRequest;
 import co.com.pragma.api.dto.SolicitudResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -49,6 +51,47 @@ public class RouterRest {
                                     ),
                                     @ApiResponse(responseCode = "400", description = "Datos inválidos"),
                                     @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+                            }
+                    )
+            ),
+            @RouterOperation(
+                    path = "/api/v1/solicitud/{idEstado}",
+                    beanClass = Handler.class,
+                    beanMethod = "listarSolicitudesPorEstado",
+                    operation = @Operation(
+                            operationId = "listarSolicitudesPorEstado",
+                            summary = "Listar solicitudes por estado",
+                            description = "Obtiene todas las solicitudes que tienen un estado específico",
+                            tags = {"Solicitudes"},
+                            parameters = {
+                                    @Parameter(
+                                            name = "idEstado",
+                                            description = "ID del estado de las solicitudes",
+                                            required = true,
+                                            schema = @Schema(type = "integer", example = "1")
+                                    )
+                            },
+                            responses = {
+                                    @ApiResponse(
+                                            responseCode = "200",
+                                            description = "Lista de solicitudes encontradas",
+                                            content = @Content(
+                                                    mediaType = "application/json",
+                                                    array = @ArraySchema(schema = @Schema(implementation = SolicitudResponse.class))
+                                            )
+                                    ),
+                                    @ApiResponse(
+                                            responseCode = "204",
+                                            description = "No se encontraron solicitudes con ese estado"
+                                    ),
+                                    @ApiResponse(
+                                            responseCode = "400",
+                                            description = "El idEstado no es válido"
+                                    ),
+                                    @ApiResponse(
+                                            responseCode = "500",
+                                            description = "Error interno del servidor"
+                                    )
                             }
                     )
             )

@@ -1,6 +1,5 @@
 package co.com.pragma.usecase.cliente;
 
-import co.com.pragma.model.enums.Estado;
 import co.com.pragma.model.solicitud.Solicitud;
 import co.com.pragma.model.solicitud.gateways.SolicitudRepository;
 import co.com.pragma.model.tipoprestamo.TipoPrestamo;
@@ -11,6 +10,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
+
+import java.math.BigDecimal;
 
 class SolicitudUseCaseTest {
 
@@ -32,6 +33,9 @@ class SolicitudUseCaseTest {
         Solicitud solicitud = new Solicitud();
         solicitud.setIdTipoPrestamo(1L);
         solicitud.setDocumentoIdentidad("123");
+        solicitud.setMonto(BigDecimal.valueOf(1000));
+        solicitud.setPlazo(10);
+        solicitud.setTasaInteres(BigDecimal.valueOf(0.05));
 
         TipoPrestamo tipoPrestamo = new TipoPrestamo();
         tipoPrestamo.setIdTipoPrestamo(1L);
@@ -40,11 +44,17 @@ class SolicitudUseCaseTest {
                 .thenReturn(Mono.just(true));
         Mockito.when(tipoPrestamoRepository.findByIdTipoPrestamo(1L))
                 .thenReturn(Mono.just(tipoPrestamo));
-        Mockito.when(solicitudRepository.guardarSolicitud(solicitud))
-                .thenReturn(Mono.just(solicitud));
+        Mockito.when(solicitudRepository.contarSolicitudesAprobadasPorDocumento("123", 2L))
+                .thenReturn(Mono.just(3)); // simulamos que tiene 3 solicitudes aprobadas
+        Mockito.when(solicitudRepository.guardarSolicitud(Mockito.any()))
+                .thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
 
         StepVerifier.create(solicitudUseCase.crearSolicitud(solicitud))
-                .expectNextMatches(s -> s.getEstado() == Estado.PENDIENTE)
+                .expectNextMatches(s ->
+                        s.getIdEstado() == 1L &&               // Estado inicial pendiente
+                                s.getSolicitudesAprobadas() == 3 &&    // Mock de solicitudes aprobadas
+                                s.getDeudaMensual().compareTo(BigDecimal.ZERO) > 0 // Se calculó deudaMensual
+                )
                 .verifyComplete();
     }
 
@@ -93,6 +103,9 @@ class SolicitudUseCaseTest {
         Solicitud solicitud = new Solicitud();
         solicitud.setDocumentoIdentidad("123");
         solicitud.setIdTipoPrestamo(1L);
+        solicitud.setMonto(BigDecimal.valueOf(1000));
+        solicitud.setPlazo(10);
+        solicitud.setTasaInteres(BigDecimal.valueOf(0.05));
 
         TipoPrestamo tipoPrestamo = new TipoPrestamo();
         tipoPrestamo.setIdTipoPrestamo(1L);
@@ -101,7 +114,9 @@ class SolicitudUseCaseTest {
                 .thenReturn(Mono.just(true));
         Mockito.when(tipoPrestamoRepository.findByIdTipoPrestamo(1L))
                 .thenReturn(Mono.just(tipoPrestamo));
-        Mockito.when(solicitudRepository.guardarSolicitud(solicitud))
+        Mockito.when(solicitudRepository.contarSolicitudesAprobadasPorDocumento("123", 2L))
+                .thenReturn(Mono.just(1));
+        Mockito.when(solicitudRepository.guardarSolicitud(Mockito.any()))
                 .thenReturn(Mono.error(new RuntimeException("DB error")));
 
         StepVerifier.create(solicitudUseCase.crearSolicitud(solicitud))
