@@ -68,7 +68,7 @@ public class Handler {
                 .doOnError(error -> log.error("Error al crear solicitud", error))
                 .flatMap(saved -> {
                     log.trace("Construyendo respuesta HTTP 201 para solicitud: {}", saved);
-                    return ServerResponse.status(HttpStatus.CREATED).bodyValue(saved);
+                    return ServerResponse.status(HttpStatus.CREATED).build();
                 });
     }
 
