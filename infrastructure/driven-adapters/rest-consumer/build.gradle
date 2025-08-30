@@ -5,6 +5,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-aop'
     implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.3.0'
     implementation 'io.github.resilience4j:resilience4j-reactor:2.3.0'
+    implementation "software.amazon.awssdk:sqs:2.29.0"
     implementation 'io.micrometer:micrometer-core'
 
     testImplementation 'com.squareup.okhttp3:okhttp:5.1.0'

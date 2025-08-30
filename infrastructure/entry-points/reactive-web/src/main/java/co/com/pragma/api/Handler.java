@@ -67,7 +67,7 @@ public class Handler {
                 .doOnError(error -> log.error("Error al crear solicitud", error))
                 .flatMap(saved -> {
                     log.trace("Construyendo respuesta HTTP 201 para solicitud: {}", saved);
-                    return ServerResponse.status(HttpStatus.CREATED).bodyValue(saved);
+                    return ServerResponse.status(HttpStatus.CREATED).build();
                 });
     }
 
@@ -107,7 +107,7 @@ public class Handler {
         String idSolicitudStr = serverRequest.pathVariable("idSolicitud");
         String idEstadoStr = serverRequest.pathVariable("idEstado");
         String rol = (String) serverRequest.attributes().get("rol");
-        log.trace("Parámetros recibidos: idEstado={} idSolicitud={}",idSolicitudStr, idEstadoStr);
+        log.trace("Parámetros recibidos: idSolicitud={} idEstado={}",idSolicitudStr, idEstadoStr);
         Long idSolicitud;
         Long idEstado;
 
@@ -115,15 +115,15 @@ public class Handler {
             idSolicitud = Long.parseLong(idSolicitudStr);
             idEstado = Long.parseLong(idEstadoStr);
         } catch (NumberFormatException e) {
-            log.error("Parámetros inválidos: idEstado={} idSolicitud={} ", idSolicitudStr, idEstadoStr);
+            log.error("Parámetros inválidos: idSolicitud={} idEstado={} ", idSolicitudStr, idEstadoStr);
             return ServerResponse.badRequest().bodyValue("Los parámetros deben ser numéricos válidos");
         }
 
         return PermisoTokenValidator.validarAccesoEditarEstado(rol)
-                .then(crearSolicitudCredito.cambiarEstadoSolicitud(idEstado,idSolicitud)
-                        .doOnSuccess(result -> log.info("Solicitud {} actualizada al estado {}", idEstado, idSolicitud))
-                        .doOnError(err -> log.error("Error actualizando solicitud {} al estado {}", idEstado,
-                                idSolicitud, err))
+                .then(crearSolicitudCredito.cambiarEstadoSolicitud(idSolicitud, idEstado)
+                        .doOnSuccess(result -> log.info("Solicitud {} actualizada al estado {}", idSolicitud, idEstado ))
+                        .doOnError(err -> log.error("Error actualizando solicitud {} al estado {}",idSolicitud,
+                                idEstado, err))
                 )
                 .then(ServerResponse.status(HttpStatus.OK)
                         .bodyValue("Estado de solicitud actualizado"))

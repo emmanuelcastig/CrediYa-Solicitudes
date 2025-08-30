@@ -3,6 +3,7 @@ package co.com.pragma.usecase.cliente;
 import co.com.pragma.model.consumer.SolicitanteConsumerGateway;
 import co.com.pragma.model.estado.gateways.EstadoRepository;
 import co.com.pragma.model.solicitud.Solicitud;
+import co.com.pragma.model.solicitud.gateways.SQSPublisher;
 import co.com.pragma.model.solicitud.gateways.SolicitudRepository;
 import co.com.pragma.model.tipoprestamo.gateways.TipoPrestamoRepository;
 import co.com.pragma.usecase.cliente.in.CrearSolicitudCredito;
@@ -15,12 +16,16 @@ import java.math.RoundingMode;
 
 @RequiredArgsConstructor
 public class SolicitudUseCase implements CrearSolicitudCredito {
+
     private final TipoPrestamoRepository tipoPrestamoRepository;
     private final SolicitudRepository solicitudRepository;
     private final SolicitanteConsumerGateway solicitanteConsumerGateway;
     private final EstadoRepository estadoRepository;
+    private final SQSPublisher sqsPublisher;
 
-
+    /**
+     * Crear una nueva solicitud de crédito
+     */
     @Override
     public Mono<Solicitud> crearSolicitud(Solicitud solicitud) {
         return Mono.just(solicitud)
@@ -36,7 +41,9 @@ public class SolicitudUseCase implements CrearSolicitudCredito {
                 .flatMap(solicitudRepository::guardarSolicitud);
     }
 
-    // Listar solicitudes por estado recibido desde la petición
+    /**
+     * Listar solicitudes por estado
+     */
     @Override
     public Flux<Solicitud> listarSolicitudesPorEstado(Long idEstado) {
         if (idEstado == null || idEstado <= 0) {
@@ -45,31 +52,51 @@ public class SolicitudUseCase implements CrearSolicitudCredito {
         return solicitudRepository.obtenerSolicitudesPorEstado(idEstado);
     }
 
-    // Cambiar estado de una solicitud
+    /**
+     * Cambiar estado de la solicitud
+     */
     @Override
     public Mono<Void> cambiarEstadoSolicitud(Long idSolicitud, Long idEstado) {
-        if (idSolicitud == null || idSolicitud <= 0) {
-            return Mono.error(new IllegalArgumentException("El idSolicitud debe ser válido"));
-        }
-        if (idEstado == null || idEstado <= 0) {
-            return Mono.error(new IllegalArgumentException("El idEstado debe ser válido"));
-        }
-        return estadoRepository.findByidEstado(idEstado)
-                .switchIfEmpty(Mono.error(new IllegalArgumentException("El estado no existe")))
-                .then(
-                        solicitudRepository.findByIdSolicitud(idSolicitud)
-                                .switchIfEmpty(Mono.error(new IllegalArgumentException("La solicitud no existe")))
+        return validarEntradas(idSolicitud, idEstado)
+                .then(validarEstadoExiste(idEstado))
+                .then(solicitudRepository.findByIdSolicitud(idSolicitud)
+                        .switchIfEmpty(Mono.error(new IllegalArgumentException("La solicitud no existe")))
+                        .flatMap(solicitud -> actualizarEstado(idSolicitud, idEstado)
+                                .then(enviarMensajeSiCorresponde(solicitud, idEstado))
+                        )
                 )
-                .then(solicitudRepository.actualizarEstadoSolicitud(idSolicitud, idEstado))
-                .flatMap(rows -> {
-                    if (rows == 0) {
-                        return Mono.error(new IllegalStateException("No se pudo actualizar la solicitud con id " + idSolicitud));
-                    }
-                    return Mono.empty();
-                });
+                .then();
     }
 
-    //Validar que el solicitante exista en el microservicio de solicitantes
+    /**
+     * Enviar mensaje a SQS si corresponde (aprobada o rechazada)
+     */
+    private Mono<Void> enviarMensajeSiCorresponde(Solicitud solicitud, Long idEstado) {
+        if (idEstado == 2L || idEstado == 4L) {
+            String estadoStr = (idEstado == 2L) ? "APROBADA" : "RECHAZADA";
+
+            String mensaje = String.format(
+                    "{ \"idSolicitud\": %d, \"email\": \"%s\", \"nombre\": \"%s\", \"estado\": \"%s\", \"monto\": %s }",
+                    solicitud.getIdSolicitud(),
+                    solicitud.getEmail(),
+                    solicitud.getNombre(),
+                    estadoStr,
+                    solicitud.getMonto()
+            );
+
+            return sqsPublisher.enviarMensaje(mensaje)
+                    .onErrorResume(e -> {
+                        // Loguear error, pero no romper flujo
+                        System.err.println("Error enviando mensaje a SQS: " + e.getMessage());
+                        return Mono.empty();
+                    });
+        }
+        return Mono.empty();
+    }
+
+    /**
+     * Validar que el solicitante exista en el microservicio de solicitantes
+     */
     private Mono<Void> validarExistenciaSolicitante(String documentoIdentidad) {
         return solicitanteConsumerGateway.verificarExistenciaSolicitante(documentoIdentidad)
                 .flatMap(existe -> {
@@ -78,28 +105,34 @@ public class SolicitudUseCase implements CrearSolicitudCredito {
                     } else {
                         return Mono.error(new IllegalArgumentException(
                                 "El solicitante con documento " + documentoIdentidad + " no existe. " +
-                                        "Debe registrarse primero antes de crear una solicitud."));
+                                        "Debe registrarse primero antes de crear una solicitud."
+                        ));
                     }
                 });
     }
 
-    //Validar que el tipo de préstamo exista en BD
+    /**
+     * Validar que el tipo de préstamo exista en BD
+     */
     private Mono<Void> validarTipoPrestamo(Long idTipoPrestamo) {
         return tipoPrestamoRepository.findByIdTipoPrestamo(idTipoPrestamo)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException(
-                        "El tipo de préstamo con ID " + idTipoPrestamo + " no existe")))
+                        "El tipo de préstamo con ID " + idTipoPrestamo + " no existe"
+                )))
                 .then();
     }
 
-
-    // aplica todos los cálculos
+    /**
+     * Aplica cálculos y asigna valores antes de guardar
+     */
     private Mono<Solicitud> prepararSolicitudParaGuardar(Solicitud solicitud) {
         aplicarDeudaYEstado(solicitud);
         return asignarSolicitudesAprobadas(solicitud);
     }
 
-
-    // Calcula deudaMensual y asigna estado inicial.
+    /**
+     * Calcula deudaMensual y asigna estado inicial (Pendiente)
+     */
     private void aplicarDeudaYEstado(Solicitud solicitud) {
         BigDecimal deudaMensual = solicitud.getMonto()
                 .multiply(solicitud.getTasaInteres())
@@ -110,16 +143,53 @@ public class SolicitudUseCase implements CrearSolicitudCredito {
     }
 
     /**
-     * Consulta en BD cuántas solicitudes aprobadas tiene el solicitante
-     * y lo asigna al objeto.
+     * Consulta en BD cuántas solicitudes aprobadas tiene el solicitante y las asigna
      */
     private Mono<Solicitud> asignarSolicitudesAprobadas(Solicitud solicitud) {
         return solicitudRepository.contarSolicitudesAprobadasPorDocumento(
-                        solicitud.getDocumentoIdentidad(), 2L // Estado aprobado
+                        solicitud.getDocumentoIdentidad(),
+                        2L // Estado aprobado
                 )
                 .map(count -> {
                     solicitud.setSolicitudesAprobadas(count);
                     return solicitud;
+                });
+    }
+
+    /**
+     * Validar idSolicitud e idEstado
+     */
+    private Mono<Void> validarEntradas(Long idSolicitud, Long idEstado) {
+        if (idSolicitud == null || idSolicitud <= 0) {
+            return Mono.error(new IllegalArgumentException("El idSolicitud debe ser válido"));
+        }
+        if (idEstado == null || idEstado <= 0) {
+            return Mono.error(new IllegalArgumentException("El idEstado debe ser válido"));
+        }
+        return Mono.empty();
+    }
+
+    /**
+     * Validar que el estado exista en BD
+     */
+    private Mono<Void> validarEstadoExiste(Long idEstado) {
+        return estadoRepository.findByidEstado(idEstado)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("El estado no existe")))
+                .then();
+    }
+
+    /**
+     * Actualizar el estado de la solicitud en BD
+     */
+    private Mono<Void> actualizarEstado(Long idSolicitud, Long idEstado) {
+        return solicitudRepository.actualizarEstadoSolicitud(idSolicitud, idEstado)
+                .flatMap(rows -> {
+                    if (rows == 0) {
+                        return Mono.error(new IllegalStateException(
+                                "No se pudo actualizar la solicitud con id " + idSolicitud +
+                                        " (no existe o ya tenía el estado " + idEstado + ")"));
+                    }
+                    return Mono.empty();
                 });
     }
 }

@@ -62,3 +62,11 @@ resilience4j:
 jwt:
   secret: "fa9e14cbf255996c837711a02c590f242d4626481019d5ed94a432922523e4a5"
   expiration: 3600000
+
+aws:
+  region: us-east-1
+  credentials:
+    access-key: ${AWS_ACCESS_KEY_ID}
+    secret-key: ${AWS_SECRET_ACCESS_KEY}
+  sqs:
+    queue-url: https://sqs.us-east-1.amazonaws.com/911708507629/cola-crediYa
