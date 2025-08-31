@@ -1,6 +1,7 @@
 package co.com.pragma.usecase.cliente;
 
 import co.com.pragma.model.consumer.SolicitanteConsumerGateway;
+import co.com.pragma.model.estado.Estado;
 import co.com.pragma.model.estado.gateways.EstadoRepository;
 import co.com.pragma.model.solicitud.Solicitud;
 import co.com.pragma.model.solicitud.gateways.SQSPublisher;
@@ -133,6 +134,69 @@ class SolicitudUseCaseTest {
                 .expectErrorMatches(e -> e instanceof IllegalArgumentException &&
                         e.getMessage().contains("idEstado debe ser un valor positivo"))
                 .verify();
+    }
+
+    @Test
+    void cambiarEstadoSolicitud_aprobada_enviaSqs() {
+        Solicitud solicitud = buildSolicitudValida();
+
+        when(estadoRepository.findByidEstado(2L))
+                .thenReturn(Mono.just(Estado.builder()
+                        .idEstado(2L)
+                        .nombre("APROBADA")
+                        .descripcion("Solicitud aprobada")
+                        .build()));
+        when(solicitudRepository.findByIdSolicitud(10L))
+                .thenReturn(Mono.just(solicitud));
+        when(solicitudRepository.actualizarEstadoSolicitud(10L, 2L))
+                .thenReturn(Mono.just(1));
+        when(sqsPublisher.enviarMensaje(anyString()))
+                .thenReturn(Mono.empty());
+
+        StepVerifier.create(solicitudUseCase.cambiarEstadoSolicitud(10L, 2L))
+                .verifyComplete();
+
+        verify(sqsPublisher, times(1)).enviarMensaje(anyString());
+    }
+
+    @Test
+    void cambiarEstadoSolicitud_estadoNoExiste() {
+        // Simular que la solicitud sí existe
+        Solicitud solicitud = buildSolicitudValida();
+        when(solicitudRepository.findByIdSolicitud(10L))
+                .thenReturn(Mono.just(solicitud));
+
+        // Simular que el estado NO existe
+        when(estadoRepository.findByidEstado(99L))
+                .thenReturn(Mono.empty());
+
+        StepVerifier.create(solicitudUseCase.cambiarEstadoSolicitud(10L, 99L))
+                .expectErrorMatches(e -> e instanceof IllegalArgumentException &&
+                        e.getMessage().contains("El estado no existe"))
+                .verify();
+    }
+
+    @Test
+    void cambiarEstadoSolicitud_noSeActualizo() {
+        Solicitud solicitud = buildSolicitudValida();
+
+        when(estadoRepository.findByidEstado(2L))
+                .thenReturn(Mono.just(Estado.builder()
+                        .idEstado(2L)
+                        .nombre("APROBADA")
+                        .descripcion("Solicitud aprobada")
+                        .build()));
+        when(solicitudRepository.findByIdSolicitud(10L))
+                .thenReturn(Mono.just(solicitud));
+        when(solicitudRepository.actualizarEstadoSolicitud(10L, 2L))
+                .thenReturn(Mono.just(0));
+
+        StepVerifier.create(solicitudUseCase.cambiarEstadoSolicitud(10L, 2L))
+                .expectErrorMatches(e -> e instanceof IllegalStateException &&
+                        e.getMessage().contains("No se pudo actualizar"))
+                .verify();
+
+        verify(sqsPublisher, never()).enviarMensaje(anyString());
     }
 
 }

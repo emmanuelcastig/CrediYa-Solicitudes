@@ -62,7 +62,7 @@ public class SolicitudUseCase implements CrearSolicitudCredito {
                 .then(solicitudRepository.findByIdSolicitud(idSolicitud)
                         .switchIfEmpty(Mono.error(new IllegalArgumentException("La solicitud no existe")))
                         .flatMap(solicitud -> actualizarEstado(idSolicitud, idEstado)
-                                .then(enviarMensajeSiCorresponde(solicitud, idEstado))
+                                .then(Mono.defer(() -> enviarMensajeSiCorresponde(solicitud, idEstado)))
                         )
                 )
                 .then();
