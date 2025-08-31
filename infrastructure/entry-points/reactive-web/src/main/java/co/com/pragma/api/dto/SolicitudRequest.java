@@ -21,7 +21,6 @@ public class SolicitudRequest {
     private BigDecimal monto;
 
     @Min(value = 1, message = "El plazo mínimo es 1 mes")
-    @Max(value = 360, message = "El plazo máximo es 360 meses")
     private int plazo;
 
     @NotNull(message = "La tasa de interes es obligatoria")

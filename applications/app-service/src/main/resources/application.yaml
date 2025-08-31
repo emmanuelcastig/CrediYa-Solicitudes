@@ -1,5 +1,6 @@
 server:
   port: 9002
+
 spring:
   application:
     name: "Solicitudes"
@@ -15,6 +16,20 @@ spring:
   sql:
     init:
       mode: never
+  autoconfigure:
+    exclude: [ ]
+  cloud:
+    aws:
+      region:
+        static: us-east-1
+      credentials:
+        access-key: ${AWS_ACCESS_KEY}
+        secret-key: ${AWS_SECRET_KEY}
+  sqs:
+    cola-crediYa-url: https://sqs.us-east-1.amazonaws.com/911708507629/cola-crediYa
+    cola-validacion-automatica-crediYa: https://sqs.us-east-1.amazonaws.com/911708507629/cola-validacion-automatica-crediYa
+    cola-resultados-validacion: cola-respuesta-validacion-automatica-crediYa
+
 management:
   endpoints:
     web:
@@ -27,16 +42,20 @@ management:
   health:
     circuitbreakers:
       enabled: true
+
 logging:
   level:
     root: "INFO"
     co.com.pragma: "TRACE"
+
 cors:
   allowed-origins: "http://localhost:4200,http://localhost:8080"
+
 adapter:
   restconsumer:
     timeout: 5000
     url: ${AUTENTICACION_URL:http://localhost:9001}
+
 resilience4j:
   circuitbreaker:
     instances:
@@ -62,11 +81,3 @@ resilience4j:
 jwt:
   secret: "fa9e14cbf255996c837711a02c590f242d4626481019d5ed94a432922523e4a5"
   expiration: 3600000
-
-aws:
-  region: us-east-1
-  credentials:
-    access-key: ${AWS_ACCESS_KEY_ID}
-    secret-key: ${AWS_SECRET_ACCESS_KEY}
-  sqs:
-    queue-url: https://sqs.us-east-1.amazonaws.com/911708507629/cola-crediYa

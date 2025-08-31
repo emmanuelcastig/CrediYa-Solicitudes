@@ -12,6 +12,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
+import java.math.MathContext;
 import java.math.RoundingMode;
 
 @RequiredArgsConstructor
@@ -38,7 +39,10 @@ public class SolicitudUseCase implements CrearSolicitudCredito {
                 // 3. Enriquecer la solicitud con cálculos antes de guardar
                 .flatMap(this::prepararSolicitudParaGuardar)
                 // 4. Guardar la solicitud
-                .flatMap(solicitudRepository::guardarSolicitud);
+                .flatMap(solicitudRepository::guardarSolicitud)
+                // 5. Enviar a SQS para validación automática si corresponde
+                .flatMap(this::enviarValidacionAutomaticaSiCorresponde);
+
     }
 
     /**
@@ -84,7 +88,7 @@ public class SolicitudUseCase implements CrearSolicitudCredito {
                     solicitud.getMonto()
             );
 
-            return sqsPublisher.enviarMensaje(mensaje)
+            return sqsPublisher.enviarMensajeNotificacion(mensaje)
                     .onErrorResume(e -> {
                         // Loguear error, pero no romper flujo
                         System.err.println("Error enviando mensaje a SQS: " + e.getMessage());
@@ -131,14 +135,58 @@ public class SolicitudUseCase implements CrearSolicitudCredito {
     }
 
     /**
+     * Enviar a SQS para validación automática si el tipo de préstamo lo requiere
+     */
+    private Mono<Solicitud> enviarValidacionAutomaticaSiCorresponde(Solicitud solicitud) {
+        return tipoPrestamoRepository.findByIdTipoPrestamo(solicitud.getIdTipoPrestamo())
+                .flatMap(tipo ->
+                        solicitudRepository.sumarCuotasMensualesEnSolicitudesAprobadas(
+                                solicitud.getDocumentoIdentidad(), 2L
+                        ).flatMap(totalDeudaMensual -> {
+                            if (Boolean.TRUE.equals(tipo.getValidacionAutomatica())) {
+                                String mensaje = String.format(
+                                        "{ \"idSolicitud\": %d, \"documento\": \"%s\", \"monto\": %s, " +
+                                                "\"plazo\": %d, \"tasaInteres\": %s, \"salarioBase\": %s, " +
+                                                "\"totalDeudaMensual\": %s, \"email\": \"%s\" }",
+                                        solicitud.getIdSolicitud(),
+                                        solicitud.getDocumentoIdentidad(),
+                                        solicitud.getMonto(),
+                                        solicitud.getPlazo(),
+                                        solicitud.getTasaInteres(),
+                                        solicitud.getSalarioBase(),
+                                        totalDeudaMensual,
+                                        solicitud.getEmail()
+                                );
+                                return sqsPublisher.enviarMensajeValidacionAutomatica(mensaje)
+                                        .thenReturn(solicitud);
+                            }
+                            return Mono.just(solicitud);
+                        })
+                );
+    }
+
+    /**
      * Calcula deudaMensual y asigna estado inicial (Pendiente)
      */
     private void aplicarDeudaYEstado(Solicitud solicitud) {
-        BigDecimal deudaMensual = solicitud.getMonto()
-                .multiply(solicitud.getTasaInteres())
-                .divide(BigDecimal.valueOf(solicitud.getPlazo()), RoundingMode.HALF_UP);
+        BigDecimal monto = solicitud.getMonto();                 // P
+        BigDecimal tasaMensual = solicitud.getTasaInteres();     // i (ej: 0.02 = 2%)
+        int plazo = solicitud.getPlazo();                        // n
 
-        solicitud.setDeudaMensual(deudaMensual);
+        // (1 + i)^n
+        BigDecimal unoMasI = BigDecimal.ONE.add(tasaMensual);
+        BigDecimal potencia = unoMasI.pow(plazo, MathContext.DECIMAL128);
+
+        // Numerador: P * i * (1+i)^n
+        BigDecimal numerador = monto.multiply(tasaMensual).multiply(potencia);
+
+        // Denominador: (1+i)^n - 1
+        BigDecimal denominador = potencia.subtract(BigDecimal.ONE);
+
+        // Cuota = numerador / denominador
+        BigDecimal cuota = numerador.divide(denominador, 2, RoundingMode.HALF_UP);
+
+        solicitud.setDeudaMensual(cuota);
         solicitud.setIdEstado(1L); // Estado "Pendiente"
     }
 

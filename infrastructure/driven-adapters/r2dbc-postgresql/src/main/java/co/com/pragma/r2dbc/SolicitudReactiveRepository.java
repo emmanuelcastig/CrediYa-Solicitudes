@@ -9,6 +9,8 @@
     import reactor.core.publisher.Flux;
     import reactor.core.publisher.Mono;
 
+    import java.math.BigDecimal;
+
     public interface SolicitudReactiveRepository extends ReactiveCrudRepository<SolicitudEntity, Long>
             , ReactiveQueryByExampleExecutor<SolicitudEntity> {
         Flux<SolicitudEntity> findByIdEstado(Long idEstado);
@@ -22,4 +24,11 @@
         @Query("UPDATE solicitud_hu4 SET id_estado = :idEstado WHERE id_solicitud = :idSolicitud")
         Mono<Integer> actualizarEstadoSolicitud(@Param("idSolicitud") Long idSolicitud,
                                                 @Param("idEstado") Long idEstado);
+
+        @Query("SELECT COALESCE(SUM(deuda_mensual), 0) " +
+                "FROM solicitud_hu4 " +
+                "WHERE documento_identidad = :documentoIdentidad " +
+                "AND id_estado = :idEstado")
+        Mono<BigDecimal> sumarCuotasMensualesEnSolicitudesAprobadas(@Param("documentoIdentidad") String documentoIdentidad,
+                                                                    @Param("idEstado") Long idEstado);
     }

@@ -11,15 +11,14 @@ import software.amazon.awssdk.services.sqs.SqsClient;
 @Configuration
 public class SQSConfig {
 
-    @Value("${aws.region}")
+    @Value("${spring.cloud.aws.region.static}")
     private String region;
 
-    @Value("${aws.credentials.access-key}")
+    @Value("${spring.cloud.aws.credentials.access-key}")
     private String accessKey;
 
-    @Value("${aws.credentials.secret-key}")
+    @Value("${spring.cloud.aws.credentials.secret-key}")
     private String secretKey;
-
 
     @Bean
     public SqsClient sqsClient() {

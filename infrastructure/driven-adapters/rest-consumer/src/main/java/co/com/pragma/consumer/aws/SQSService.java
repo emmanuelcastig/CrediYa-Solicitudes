@@ -16,26 +16,35 @@ public class SQSService implements SQSPublisher {
 
     private final SqsClient sqsClient;
 
-    @Value("${aws.sqs.queue-url}")
-    private String queueUrl;
+    @Value("${spring.sqs.cola-crediYa-url}")
+    private String notificacionQueueUrl;
 
+    @Value("${spring.sqs.cola-validacion-automatica-crediYa}")
+    private String validacionQueueUrl;
 
     @Override
-    public Mono<Void> enviarMensaje(String mensaje) {
+    public Mono<Void> enviarMensajeNotificacion(String mensaje) {
+        return enviarMensaje(mensaje, notificacionQueueUrl);
+    }
+
+    @Override
+    public Mono<Void> enviarMensajeValidacionAutomatica(String mensaje) {
+        return enviarMensaje(mensaje, validacionQueueUrl);
+    }
+
+    private Mono<Void> enviarMensaje(String mensaje, String queueUrl) {
         return Mono.fromCallable(() -> {
+            SendMessageRequest sendMsgRequest = SendMessageRequest.builder()
+                    .queueUrl(queueUrl)
+                    .messageBody(mensaje)
+                    .build();
 
-                    SendMessageRequest sendMsgRequest = SendMessageRequest.builder()
-                            .queueUrl(queueUrl)
-                            .messageBody(mensaje)
-                            .build();
+            var response = sqsClient.sendMessage(sendMsgRequest);
 
-                    var response = sqsClient.sendMessage(sendMsgRequest);
+            log.info("Mensaje enviado a SQS [{}] con ID: {}", queueUrl, response.messageId());
+            log.debug("Contenido del mensaje: {}", mensaje);
 
-                    log.trace("Mensaje enviado a SQS con ID: {}", response.messageId());
-                    log.trace("Contenido del mensaje: {}", mensaje);
-
-                    return response;
-                })
-                .then();
+            return response;
+        }).then();
     }
 }

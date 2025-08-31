@@ -9,6 +9,8 @@ import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.math.BigDecimal;
+
 @Repository
 public class SolicitudReactiveRepositoryAdapter extends ReactiveAdapterOperations<
         Solicitud,
@@ -47,5 +49,10 @@ public class SolicitudReactiveRepositoryAdapter extends ReactiveAdapterOperation
     public Mono<Solicitud> findByIdSolicitud(Long idSolicitud) {
         return repository.findByIdSolicitud(idSolicitud)
                 .map(this::toEntity);
+    }
+
+    @Override
+    public Mono<BigDecimal> sumarCuotasMensualesEnSolicitudesAprobadas(String documentoIdentidad, Long idEstado) {
+        return repository.sumarCuotasMensualesEnSolicitudesAprobadas(documentoIdentidad, idEstado);
     }
 }
