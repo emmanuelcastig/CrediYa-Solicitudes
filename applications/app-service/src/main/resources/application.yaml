@@ -23,8 +23,8 @@ spring:
       region:
         static: us-east-1
       credentials:
-        access-key: ${AWS_ACCESS_KEY}
-        secret-key: ${AWS_SECRET_KEY}
+        access-key: ${AWS_ACCESS_KEY_ID}
+        secret-key: ${AWS_SECRET_ACCESS_KEY}
   sqs:
     cola-crediYa-url: https://sqs.us-east-1.amazonaws.com/911708507629/cola-crediYa
     cola-validacion-automatica-crediYa: https://sqs.us-east-1.amazonaws.com/911708507629/cola-validacion-automatica-crediYa
